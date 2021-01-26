@@ -6,9 +6,12 @@ Running:
 
 perl aribatester.pl daemon -l http://127.0.0.1:12100
 
+or with nohup
 
-[umbrait@s30]:<~/domains/aribatest.xyz.net/public_html>$ devil www list
-Nazwa domeny                           Typ      Katalog / Adres docelowy
+$ nohup perl aribatester.pl daemon -l http://127.0.0.1:12100 2>&1 | tee -a ~/domains/aribatest.xyz.net/logs/nohup.out
+[2021-01-26 13:20:26.75877] [96883] [info] Listening at "http://127.0.0.1:12100"
+Server available at http://127.0.0.1:12100
 
-aribatest.umbrait.xyz.net           proxy    http://127.0.0.1:12100
+
+
 
