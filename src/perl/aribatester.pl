@@ -88,23 +88,40 @@ post '/fg/pr' => sub {
   	$c->render(template => 'soap/fg_pr_response', format => 'xml');
 };
 
+
+# TODO: parse the request and generate random PDF links using e.g. WWW::DuckDuckGo
+#
+post '/doc/url' => sub {
+	my $c = shift;
+	&dump_req($c);
+  	$c->render(template => 'soap/doc_url_response', format => 'xml');
+};
+
 post '/vne/:approvable' => sub {
   my $c = shift;
   &dump_req($c);
   my $appr = $c->param('approvable') ;
-  die "Unsupported approvable $appr" unless $appr =~ /^(invoice|ir)$/;
+  die "Unsupported approvable $appr" unless $appr =~ /^(invoice|ir|pr)$/;
   my $partition = $c->param('partition') || 'prealm_???' ;
   my $variant = $c->param('variant') || 'vrealm_???' ;
-  $c->req->content->asset->slurp =~ /<UniqueName>(INV[^<]+)/;
-  $c->app->log->info("Calling VnE for $appr [UniqueName=$1]");
-  $c->stash(key=>$1);
+  my ($uniq) = $c->req->content->asset->slurp =~ /<UniqueName>((?:INV|PR)[^<]+)/gs;
+  $c->app->log->info("Calling VnE for $appr [UniqueName=$uniq]");
+  $c->stash(key=>$uniq);
+  ## now here's the OK/NOK logic
+  # if the unique name contains FAIL the VnE for INV should fail
+  # if the unique name contains FAILURE the VnE for IR should fail
+  # otherwise it should be an OK
+  my $vne_tmpl_suff = 'OK';
+  if ($appr =~ /^invoice$/ && $uniq =~ /FAIL$/i || $appr =~ /^ir$/ && $uniq =~/FAILURE$/i){
+  	$vne_tmpl_suff = 'NOK';
+  }
 
   #if ($event && $event =~ /ProcessInvoiceExternallyExport/){
 	# use https://github.wdf.sap.corp/Ariba-Ond/Buyer/blob/2de50d41ff0a4275ae278bc8164620b7e51c3988/test-invoicing/test/ariba/invoicing/core/data/ValidateEnrich/generic/ValidateEnrich_Invoice_SuccessTemplate.xml
 	# as the template
   	
 	my $res = $c->render_to_string(	
-				template => sprintf('soap/ariba_vne_%s_response_%s',$appr,$appr eq 'invoice'?'NOK':'OK'), 
+				template => sprintf('soap/ariba_vne_%s_response_%s',$appr,$vne_tmpl_suff), 
 				handler=>'tt2', 
 				partition=>$partition, 
 				variant=>$variant,
@@ -122,11 +139,58 @@ app->start;
 
 __DATA__
 
-@@ foo/bar.xml.ep
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-   <soap:Body>
-      </soap:Body>
-	  </soap:Envelope>
+@@ soap/doc_url_response.xml.ep
+<?xml version="1.0"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:Ariba:Sourcing:VARIBA">
+  <soapenv:Body>
+    <urn:DocumentURLOutBoundReply>
+      <!--Optional:-->
+      <urn:WSDocumentURLOutBoundResponse_Item>
+        <!--Optional:-->
+        <urn:item>
+          <!--You may enter the following 5 items in any order-->
+          <!--urn:ErrorMessage>?</urn:ErrorMessage-->
+          <urn:Status>Draft</urn:Status>
+          <urn:Suppliers>
+            <urn:item>
+			<urn:Supplier>
+               <urn:ContactEmailAddress>az.zdzi@yahoo.com</urn:ContactEmailAddress>
+               <urn:OrganizationId>Active Ingredients France - duplicate</urn:OrganizationId>
+               <urn:ContactName>Radek 0000037001 Active Ing</urn:ContactName>
+               <urn:UniqueName>1591708039175_radoslaw.kotowicz@sap.com</urn:UniqueName>
+               <urn:Vendorkeys>
+				 <urn:BusinessSystemId/>
+				 <urn:LocationId/>
+				 <urn:SiteId/>
+                 <urn:VendorId>0000037001</urn:VendorId>
+               </urn:Vendorkeys>
+              </urn:Supplier>
+			  <urn:Materials>
+                <urn:item>
+                  <urn:Plant>3000 New York</urn:Plant>
+              <urn:Vendorkeys>
+				<urn:BusinessSystemId/>
+				<urn:LocationId/>
+				<urn:SiteId/>
+                <urn:VendorId>0000037001</urn:VendorId>
+              </urn:Vendorkeys>
+                  <urn:MaterialNumber>HT-S2011008</urn:MaterialNumber>
+                  <urn:Name>16X DVD-ROM SATA 1st Drive</urn:Name>
+                  <urn:DocumentUrl>http://test.com</urn:DocumentUrl>
+                  <urn:DocumentUrlDescription>Ble ble ble</urn:DocumentUrlDescription>
+                  <!--urn:ErrorMessage>?</urn:ErrorMessage-->
+                </urn:item>
+              </urn:Materials>
+            </urn:item>
+          </urn:Suppliers>
+          <urn:Type>RFx</urn:Type>
+          <urn:UniqueId>Doc3854728325</urn:UniqueId>
+        </urn:item>
+      </urn:WSDocumentURLOutBoundResponse_Item>
+    </urn:DocumentURLOutBoundReply>
+  </soapenv:Body>
+</soapenv:Envelope>
+
 
 @@ cxml/dummy_response.xml.ep
 <?xml version="1.0" encoding="UTF-8"?>
@@ -162,6 +226,56 @@ __DATA__
 </soap:Body>
 </soap:Envelope>
 
+
+@@ soap/ariba_vne_pr_response_OK.xml.tt2
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Header/>
+      <soap:Body>
+	        </soap:Body>
+			      </soap:Envelope>
+
+@@ soap/ariba_vne_pr_response_OK.xml.tt2
+<?xml version="1.0" encoding="UTF-8"?>
+<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+<soap-env:Header/>
+<soap-env:Body>
+<n0:ProcessRequisitionExternallyExportReply xmlns:n0="urn:Ariba:Buyer:vsap" xmlns:prx="urn:sap.com:proxy:Q01:/1SAI/TASAA0D58ABFE4828CF458F:740" partition="prealm_3636" variant="vrealm_3636">
+<n0:Requisition_ProcessReqExtValidationStatusResponseImport_Item>
+<n0:item>
+<n0:EventDetails>
+<n0:StatusResponse>Failure</n0:StatusResponse>
+</n0:EventDetails>
+<n0:UniqueName>[% key %]</n0:UniqueName>
+</n0:item>
+</n0:Requisition_ProcessReqExtValidationStatusResponseImport_Item>
+<n0:Requisition_ProcessReqExtEnrichResponseImport_Item>
+<n0:item>
+<n0:LineItems>
+<n0:item>
+<n0:Accountings>
+<n0:SplitAccountings>
+<n0:item>
+<n0:NumberInCollection>1</n0:NumberInCollection>
+<n0:custom>
+<n0:CustomString name="Division"/>
+<n0:CustomString name="ProfitCenter">GB25600004</n0:CustomString>
+</n0:custom>
+</n0:item>
+</n0:SplitAccountings>
+</n0:Accountings>
+<n0:NeedBy>2020-04-23T10:30:00Z</n0:NeedBy>
+<n0:NumberInCollection>1</n0:NumberInCollection>
+<n0:custom>
+<n0:CustomString name="TaxJurisdictionCode"/>
+</n0:custom>
+</n0:item>
+</n0:LineItems>
+<n0:UniqueName>[% key %]</n0:UniqueName>
+</n0:item>
+</n0:Requisition_ProcessReqExtEnrichResponseImport_Item>
+</n0:ProcessRequisitionExternallyExportReply>
+</soap-env:Body>
+</soap-env:Envelope>
 
 @@ soap/ariba_vne_ir_response_OK.xml.tt2
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
