@@ -42,7 +42,7 @@ get '/sleep/' => sub {
   } elsif ($format && $format =~ /fg/i) {
   	$c->render(template => 'soap/fg_pr_response', format => 'xml', seconds=>$seconds);
   } else {
-  	$c->render(template => 'foo/bar', format => 'xml', seconds=>$seconds);
+  	$c->render(template => 'soap/dummy', format => 'xml', seconds=>$seconds);
   }
   #$c->rendered(200);
 };
@@ -77,7 +77,7 @@ post '/sleep/' => sub {
   if ($format && $format =~ /cxml/i) {
   	$c->render(template => 'cxml/dummy_response', format => 'xml', seconds=>$seconds);
   } else {
-  	$c->render(template => 'foo/bar', format => 'xml', seconds=>$seconds);
+  	$c->render(template => 'soap/dummy', format => 'xml', seconds=>$seconds);
  }
   #$c->rendered(200);
 };
@@ -162,18 +162,12 @@ __DATA__
 				 <urn:BusinessSystemId/>
 				 <urn:LocationId/>
 				 <urn:SiteId/>
-                 <urn:VendorId>0000037001</urn:VendorId>
+                 <urn:VendorId>-13022705550259</urn:VendorId>
                </urn:Vendorkeys>
               </urn:Supplier>
 			  <urn:Materials>
                 <urn:item>
                   <urn:Plant>3000 New York</urn:Plant>
-              <urn:Vendorkeys>
-				<urn:BusinessSystemId/>
-				<urn:LocationId/>
-				<urn:SiteId/>
-                <urn:VendorId>0000037001</urn:VendorId>
-              </urn:Vendorkeys>
                   <urn:MaterialNumber>HT-S2011008</urn:MaterialNumber>
                   <urn:Name>16X DVD-ROM SATA 1st Drive</urn:Name>
                   <urn:DocumentUrl>http://test.com</urn:DocumentUrl>
@@ -184,7 +178,7 @@ __DATA__
             </urn:item>
           </urn:Suppliers>
           <urn:Type>RFx</urn:Type>
-          <urn:UniqueId>Doc3854728325</urn:UniqueId>
+          <urn:UniqueId>Doc3856350374</urn:UniqueId>
         </urn:item>
       </urn:WSDocumentURLOutBoundResponse_Item>
     </urn:DocumentURLOutBoundReply>
@@ -226,6 +220,12 @@ __DATA__
 </soap:Body>
 </soap:Envelope>
 
+@@ soap/dummy.xml.tt2
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Header/>
+      <soap:Body>
+	        </soap:Body>
+			      </soap:Envelope>
 
 @@ soap/ariba_vne_pr_response_OK.xml.tt2
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
